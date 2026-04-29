@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>お問い合わせ</title>
+  <style>
+    :root {
+      --primary: #1a4a2e;
+      --primary-light: #2d6a4f;
+      --accent: #52b788;
+      --bg: #f0f4f1;
+      --card: #ffffff;
+      --border: #c8d5ca;
+      --text: #1a2e1e;
+      --text-sub: #5a7a60;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .header {
+      background: var(--primary);
+      color: #fff;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-logo {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .header-title { font-size: 15px; font-weight: 700; }
+    .header-sub { font-size: 11px; opacity: 0.7; }
+
+    .wrap { max-width: 520px; margin: 0 auto; padding: 24px 16px 60px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .card-lead {
+      font-size: 13px;
+      color: var(--text-sub);
+      line-height: 1.7;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+    .form-group label span { color: #c8102e; margin-left: 2px; }
+    .fi {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      background: #f7faf7;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      transition: border-color 0.15s;
+    }
+    .fi:focus { outline: none; border-color: var(--accent); }
+    .fi.error { border-color: #c8102e; }
+    textarea.fi { resize: vertical; min-height: 120px; line-height: 1.6; }
+
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: 8px;
+      box-shadow: 0 3px 10px rgba(26,74,46,0.3);
+      transition: all 0.15s;
+      letter-spacing: 0.05em;
+    }
+    .btn-submit:hover { background: var(--primary-light); }
+    .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* 送信完了 */
+    .success-box {
+      display: none;
+      text-align: center;
+      padding: 32px 20px;
+    }
+    .success-icon { font-size: 48px; margin-bottom: 12px; }
+    .success-title { font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+    .success-msg { font-size: 13px; color: var(--text-sub); line-height: 1.7; }
+
+    /* トースト */
+    .toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #c8102e;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      transition: transform 0.3s;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .urgency-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+    .urgency-btn {
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      color: var(--text-sub);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .urgency-btn.selected {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-sub);
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">📨</div>
+  <div>
+    <div class="header-title">お問い合わせ</div>
+    <div class="header-sub">AI Director / aitech-jp.com</div>
+  </div>
+  <img src="H_heart.png" alt="ロゴ" style="height:40px;margin-left:auto;opacity:0.95;">
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <!-- 送信前フォーム -->
+    <div id="formArea">
+      <div class="card-lead">
+        お気軽にお問い合わせください。<br>
+        返信先にメールアドレスまたは電話番号をご記入ください。
+      </div>
+
+      <!-- ③ 緊急度 -->
+      <div class="form-group">
+        <label>緊急度<span>*</span></label>
+        <div class="urgency-row">
+          <div class="urgency-btn selected" data-value="緊急" onclick="selectUrgency(this)">🔴 緊急</div>
+          <div class="urgency-btn" data-value="なるべく早く" onclick="selectUrgency(this)">🟡 なるべく早く</div>
+          <div class="urgency-btn" data-value="時間のある時に" onclick="selectUrgency(this)">🟢 時間のある時に</div>
+        </div>
+        <input type="hidden" id="urgency" value="緊急">
+      </div>
+
+      <!-- ② 内容を先に -->
+      <div class="form-group">
+        <label>お問い合わせ内容<span>*</span></label>
+        <textarea class="fi" id="message" placeholder="お問い合わせ内容をご記入ください"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>お名前<span>*</span></label>
+        <input class="fi" type="text" id="name" placeholder="例：田中 太郎" maxlength="50">
+      </div>
+
+      <div class="form-group">
+        <label>返信先（メールアドレスまたは電話番号）<span>*</span></label>
+        <input class="fi" type="text" id="contact" placeholder="例：example@email.com　または　090-0000-0000" maxlength="100">
+      </div>
+
+      <button class="btn-submit" id="btnSubmit" onclick="submitForm()">
+        送信する
+      </button>
+    </div>
+
+    <!-- 送信完了 -->
+    <div class="success-box" id="successBox">
+      <div class="success-icon">✅</div>
+      <div class="success-title">送信完了しました</div>
+      <div class="success-msg">
+        お問い合わせありがとうございます。<br>
+        内容を確認の上、ご連絡いたします。
+      </div>
+      <button onclick="resetForm()" style="margin-top:20px;padding:10px 24px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">
+        ← 入力画面に戻る
+      </button>
+    </div>
+  </div>
+
+  <div class="footer">✦ Powered by Claude with AI Director ✦</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const ENDPOINT = 'https://aitech-jp.com/contact.php';
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function selectUrgency(el) {
+  document.querySelectorAll('.urgency-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('urgency').value = el.dataset.value;
+}
+
+function resetForm() {
+  document.getElementById('formArea').style.display = 'block';
+  document.getElementById('successBox').style.display = 'none';
+  document.getElementById('name').value = '';
+  document.getElementById('contact').value = '';
+  document.getElementById('message').value = '';
+  document.getElementById('urgency').value = '緊急';
+  document.querySelectorAll('.urgency-btn').forEach((b,i) => b.classList.toggle('selected', i===0));
+  document.getElementById('btnSubmit').disabled = false;
+  document.getElementById('btnSubmit').textContent = '送信する';
+}
+
+async function submitForm() {
+  const name    = document.getElementById('name').value.trim();
+  const contact = document.getElementById('contact').value.trim();
+  const message = document.getElementById('message').value.trim();
+  const urgency = document.getElementById('urgency').value;
+
+  // バリデーション
+  let hasError = false;
+  ['name','contact','message'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el.value.trim()) {
+      el.classList.add('error');
+      hasError = true;
+    } else {
+      el.classList.remove('error');
+    }
+  });
+  if (hasError) { showToast('必須項目を入力してください'); return; }
+
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.textContent = '⏳ 送信中...';
+
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, contact, message, urgency }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('formArea').style.display = 'none';
+      document.getElementById('successBox').style.display = 'block';
+    } else {
+      showToast(data.error || '送信に失敗しました');
+      btn.disabled = false;
+      btn.textContent = '送信する';
+    }
+  } catch(e) {
+    showToast('通信エラーが発生しました');
+    btn.disabled = false;
+    btn.textContent = '送信する';
+  }
+}
+
+// Enterキーで送信しない（テキストエリア以外）
+document.querySelectorAll('input').forEach(el => {
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+});
+</script>
+</body>
+</html>
