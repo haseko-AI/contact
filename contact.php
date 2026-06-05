@@ -90,6 +90,8 @@ $post_data = [
     'to'          => 'info@aitech-jp.com',
     'fromName'    => 'AI Director お問い合わせフォーム',
     'subject'     => $subject,
+    'title'       => '📨 お問い合わせが届きました',
+    'subtitle'    => $time,
     'bodyContent' => $html_body,
 ];
 
