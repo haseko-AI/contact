@@ -1,11 +1,10 @@
 <?php
-// contact.php - お問い合わせフォーム受信
-// sendmail_proxy.php経由で送信（SendGrid/XREA切替対応）
-// 設置場所: public_html/aitech-jp.com/contact.php
+// sendmail_sendgrid.php - SendGrid API経由メール送信
+// 設置場所: /virtual/aidirector/config/sendmail_sendgrid.php
 
-header('Content-Type: application/json; charset=UTF-8');
+header('Access-Control-Allow-Methods: POST');
+header('Access-Control-Allow-Headers: Content-Type');
 
-// CORS設定
 $allowed_origins = [
     'https://haseko-ai.github.io',
     'https://aitech-jp.com',
@@ -13,110 +12,123 @@ $allowed_origins = [
 ];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowed_origins)) {
-    header("Access-Control-Allow-Origin: {$origin}");
+    header('Access-Control-Allow-Origin: ' . $origin);
 } else {
-    header('Access-Control-Allow-Origin: https://haseko-ai.github.io');
-}
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-header('Access-Control-Max-Age: 86400');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
+    header('Access-Control-Allow-Origin: https://aitech-jp.com');
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'POSTリクエストのみ受け付けます']);
     exit;
 }
 
-// 入力受け取り
-$data    = json_decode(file_get_contents('php://input'), true) ?: $_POST;
-$name    = htmlspecialchars(trim($data['name']    ?? ''), ENT_QUOTES, 'UTF-8');
-$contact = htmlspecialchars(trim($data['contact'] ?? ''), ENT_QUOTES, 'UTF-8');
-$message = htmlspecialchars(trim($data['message'] ?? ''), ENT_QUOTES, 'UTF-8');
-$urgency = htmlspecialchars(trim($data['urgency'] ?? '緊急'), ENT_QUOTES, 'UTF-8');
-$ip      = $_SERVER['REMOTE_ADDR'] ?? '';
-$time    = date('Y年m月d日 H:i:s');
+$config_file = '/virtual/aidirector/config/mail_config.php';
+if (!file_exists($config_file)) {
+    echo json_encode(['success' => false, 'message' => 'mail_config.phpが見つかりません']);
+    exit;
+}
+require_once $config_file;
 
-if (!$name || !$contact || !$message) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => '必須項目が不足しています']);
+$apiKey = $mail_config['sendgrid_api_key'] ?? '';
+if (empty($apiKey)) {
+    echo json_encode(['success' => false, 'message' => 'SendGrid APIキーが設定されていません']);
     exit;
 }
 
-// 緊急度カラー
-$urgency_colors = [
-    '緊急'          => '#c8102e',
-    'なるべく早く'   => '#d97706',
-    '時間のある時に' => '#2d8a4e',
-];
-$urgency_color = $urgency_colors[$urgency] ?? '#1a4a2e';
+$to          = isset($_POST['to'])          ? trim($_POST['to'])          : '';
+$fromName    = isset($_POST['fromName'])    ? trim($_POST['fromName'])    : 'AI Director';
+$subject     = isset($_POST['subject'])     ? trim($_POST['subject'])     : '（件名なし）';
+$bodyContent = isset($_POST['bodyContent']) ? $_POST['bodyContent']       : '';
+$title       = isset($_POST['title'])       ? trim($_POST['title'])       : $subject;
+$subtitle    = isset($_POST['subtitle'])    ? trim($_POST['subtitle'])    : '自動送信システム';
 
-// sendmail_sendgrid.phpのラッパーに入れる中身だけ渡す
-$html_body = <<<HTML
-<table width="100%" cellpadding="0" cellspacing="0">
-  <tr>
-    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:12px;color:#888;width:120px;">緊急度</td>
-    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:15px;font-weight:700;color:{$urgency_color};">{$urgency}</td>
-  </tr>
-  <tr>
-    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:12px;color:#888;">お名前</td>
-    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:15px;font-weight:600;">{$name}</td>
-  </tr>
-  <tr>
-    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:12px;color:#888;">返信先</td>
-    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:14px;">{$contact}</td>
-  </tr>
-  <tr>
-    <td style="padding:12px 0;font-size:12px;color:#888;vertical-align:top;">お問い合わせ内容</td>
-    <td style="padding:12px 0;font-size:14px;line-height:1.8;white-space:pre-wrap;">{$message}</td>
-  </tr>
-  <tr>
-    <td colspan="2" style="padding:8px 0;font-size:11px;color:#8a9ab8;text-align:right;">
-      送信元IP: {$ip}　送信日時: {$time}
-    </td>
-  </tr>
+// 管理者CC
+$admin_cc = 'ishida.from@gmail.com';
+$cc  = isset($_POST['cc'])  ? trim($_POST['cc'])  : '';
+$bcc = isset($_POST['bcc']) ? trim($_POST['bcc']) : '';
+if (empty($cc)) {
+    $cc = $admin_cc;
+} elseif (strpos($cc, $admin_cc) === false) {
+    $cc .= ',' . $admin_cc;
+}
+
+if (empty($to)) {
+    echo json_encode(['success' => false, 'message' => '宛先が指定されていません']);
+    exit;
+}
+
+// デザイン
+$bgColor1   = '#1a3a5c';
+$bgColor2   = '#0d2137';
+$titleColor = '#ffffff';
+$lineColor  = '#2d7dd2';
+
+$titleEsc    = htmlspecialchars($title,    ENT_QUOTES, 'UTF-8');
+$subtitleEsc = htmlspecialchars($subtitle, ENT_QUOTES, 'UTF-8');
+
+$htmlBody = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:\'Hiragino Kaku Gothic ProN\',Meiryo,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,' . $bgColor1 . ',' . $bgColor2 . ');">
+  <tr><td style="padding:14px 26px 0;">
+    <p style="margin:0 0 14px;font-size:20px;font-weight:bold;color:' . $titleColor . ';">' . $titleEsc . '</p>
+  </td></tr>
+  <tr><td height="1" style="background:' . $lineColor . ';font-size:0;">&nbsp;</td></tr>
+  <tr><td style="padding:5px 26px 10px;">
+    <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.6);">' . $subtitleEsc . '</p>
+  </td></tr>
 </table>
-HTML;
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+  <tr><td style="padding:28px;color:#1a2540;font-size:14px;line-height:1.9;">' . $bodyContent . '</td></tr>
+  <tr><td style="background:#f4f6fb;padding:14px 26px;">
+    <p style="margin:0;font-size:12px;font-weight:bold;color:#1a4fa8;text-align:right;">AI Director / AI tech JAPAN</p>
+    <p style="margin:0;font-size:11px;color:#8a9ab8;text-align:right;">このメールは自動送信システムより送信されています。返信はできません。</p>
+  </td></tr>
+</table>
+</body></html>';
 
-$subject = '【' . $urgency . '】お問い合わせ：' . $name . ' 様';
-
-// sendmail_proxy.phpに丸投げ（SendGrid/XREA自動切替）
-$proxy_url = 'https://aitech-jp.com/sendmail_proxy.php';
-
-$post_data = [
-    'to'          => 'info@aitech-jp.com',
-    'fromName'    => 'AI Director お問い合わせフォーム',
-    'subject'     => $subject,
-    'title'       => '📨 お問い合わせが届きました',
-    'subtitle'    => $time,
-    'bodyContent' => $html_body,
+$fromAddress = 'info@aitech-jp.com';
+$data = [
+    'personalizations' => [[
+        'to' => array_map(fn($e) => ['email' => trim($e)], explode(',', $to)),
+    ]],
+    'from'    => ['email' => $fromAddress, 'name' => $fromName],
+    'subject' => $subject,
+    'content' => [['type' => 'text/html', 'value' => $htmlBody]],
 ];
 
-$context = stream_context_create([
-    'http' => [
-        'method'  => 'POST',
-        'header'  => "Content-Type: application/x-www-form-urlencoded\r\n",
-        'content' => http_build_query($post_data),
-        'timeout' => 30,
-    ],
-    'ssl' => [
-        'verify_peer'      => false,
-        'verify_peer_name' => false,
-    ],
-]);
+if (!empty($cc)) {
+    $ccList = array_filter(array_map('trim', explode(',', $cc)));
+    if ($ccList) $data['personalizations'][0]['cc'] = array_map(fn($e) => ['email' => $e], $ccList);
+}
+if (!empty($bcc)) {
+    $bccList = array_filter(array_map('trim', explode(',', $bcc)));
+    if ($bccList) $data['personalizations'][0]['bcc'] = array_map(fn($e) => ['email' => $e], $bccList);
+}
 
-try {
-    $result = file_get_contents($proxy_url, false, $context);
-    if ($result === false) throw new Exception('sendmail_proxy.phpへの接続失敗');
-    $decoded = json_decode($result, true);
-    if ($decoded && isset($decoded['success'])) {
-        echo json_encode($decoded);
-    } else {
-        echo json_encode(['success' => true, 'message' => '送信しました']);
-    }
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+$ch = curl_init('https://api.sendgrid.com/v3/mail/send');
+curl_setopt_array($ch, [
+    CURLOPT_POST           => true,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_HTTPHEADER     => [
+        'Authorization: Bearer ' . $apiKey,
+        'Content-Type: application/json',
+    ],
+    CURLOPT_POSTFIELDS => json_encode($data),
+]);
+$response  = curl_exec($ch);
+$httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curlError = curl_error($ch);
+curl_close($ch);
+
+if ($curlError) {
+    echo json_encode(['success' => false, 'message' => 'cURLエラー: ' . $curlError]);
+    exit;
+}
+if ($httpCode >= 200 && $httpCode < 300) {
+    echo json_encode(['success' => true, 'message' => '送信成功']);
+} else {
+    $errData = json_decode($response, true);
+    $errMsg  = $errData['errors'][0]['message'] ?? $response;
+    echo json_encode(['success' => false, 'message' => '送信失敗: ' . $errMsg]);
 }
