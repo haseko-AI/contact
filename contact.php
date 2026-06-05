@@ -54,51 +54,31 @@ $urgency_colors = [
 ];
 $urgency_color = $urgency_colors[$urgency] ?? '#1a4a2e';
 
-$bg1 = '#1a4a2e';
-$bg2 = '#2d6a4f';
-
-// HTMLメール本文
+// sendmail_sendgrid.phpのラッパーに入れる中身だけ渡す
 $html_body = <<<HTML
-<!DOCTYPE html>
-<html lang="ja">
-<head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Hiragino Kaku Gothic ProN',Meiryo,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,{$bg1},{$bg2});">
+<table width="100%" cellpadding="0" cellspacing="0">
   <tr>
-    <td style="padding:18px 26px 6px;">
-      <p style="margin:0;font-size:18px;font-weight:bold;color:#ffffff;">📨 お問い合わせが届きました</p>
+    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:12px;color:#888;width:120px;">緊急度</td>
+    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:15px;font-weight:700;color:{$urgency_color};">{$urgency}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:12px;color:#888;">お名前</td>
+    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:15px;font-weight:600;">{$name}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:12px;color:#888;">返信先</td>
+    <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:14px;">{$contact}</td>
+  </tr>
+  <tr>
+    <td style="padding:12px 0;font-size:12px;color:#888;vertical-align:top;">お問い合わせ内容</td>
+    <td style="padding:12px 0;font-size:14px;line-height:1.8;white-space:pre-wrap;">{$message}</td>
+  </tr>
+  <tr>
+    <td colspan="2" style="padding:8px 0;font-size:11px;color:#8a9ab8;text-align:right;">
+      送信元IP: {$ip}　送信日時: {$time}
     </td>
   </tr>
-  <tr><td height="1" style="background:#52b788;font-size:0;">&nbsp;</td></tr>
-  <tr><td style="padding:4px 26px 10px;font-size:10px;color:rgba(255,255,255,0.4);">{$time}</td></tr>
 </table>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
-  <tr><td style="padding:24px 28px;font-size:14px;line-height:1.9;color:#1a2540;">
-    <table width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:12px;color:#888;width:120px;">緊急度</td>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:15px;font-weight:700;color:{$urgency_color};">{$urgency}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:12px;color:#888;">お名前</td>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:15px;font-weight:600;">{$name}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:12px;color:#888;">返信先</td>
-        <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:14px;">{$contact}</td>
-      </tr>
-      <tr>
-        <td style="padding:12px 0;font-size:12px;color:#888;vertical-align:top;">お問い合わせ内容</td>
-        <td style="padding:12px 0;font-size:14px;line-height:1.8;white-space:pre-wrap;">{$message}</td>
-      </tr>
-    </table>
-  </td></tr>
-  <tr><td style="background:#f4f6fb;padding:12px 26px;border-bottom:1px solid #e0e7f0;font-size:11px;color:#8a9ab8;text-align:right;">
-    送信元IP: {$ip}　✦ AI Director / AI tech JAPAN ✦
-  </td></tr>
-</table>
-</body>
-</html>
 HTML;
 
 $subject = '【' . $urgency . '】お問い合わせ：' . $name . ' 様';
